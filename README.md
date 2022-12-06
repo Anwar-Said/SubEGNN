@@ -1,0 +1,2 @@
+# SubEGNN
+GNNs framework
