@@ -10,14 +10,12 @@ from itertools import chain
 import numpy as np
 import torch
 import torch.nn.functional as F
-from scipy.sparse.csgraph import shortest_path
 from sklearn.metrics import roc_auc_score,accuracy_score
 from torch.nn import BCEWithLogitsLoss, Conv1d, MaxPool1d, ModuleList
 from torch_geometric.data import Data, InMemoryDataset
 from torch_geometric.datasets import Planetoid
 from torch_geometric.loader import DataLoader
-from torch_geometric.nn import MLP, GCNConv, GINConv,SAGEConv,GraphConv,TransformerConv,ResGatedGraphConv, global_sort_pool
-from torch_geometric.transforms import RandomLinkSplit
+from torch_geometric.nn import MLP, GCNConv, SAGEConv,GraphConv,TransformerConv,ResGatedGraphConv, global_sort_pool
 from torch_geometric.utils import k_hop_subgraph, to_scipy_sparse_matrix, from_networkx,to_networkx
 import matplotlib.pyplot as plt
 import pickle
@@ -33,15 +31,12 @@ import netlsd
 import json
 import csv
 
-
-# In[ ]:
+# dataset is available here: https://github.com/benedekrozemberczki/datasets#twitch-ego-nets
 
 
 dataset = json.load(open("data/twitch_egos_2/twitch_egos_2.json"))
 targets = pd.read_csv('data/twitch_egos_2/twitch_target.csv')
 
-
-# In[ ]:
 
 
 graphs, labels = [],[]
@@ -51,18 +46,14 @@ for k, edge_list in dataset.items():
     g.add_edges_from(edge_list)
     deg = dict(nx.degree(g))
     g.remove_node( max(deg, key=deg.get))
-    largest_cc = max(nx.connected_components(g), key=len)
-    subg = g.subgraph(largest_cc).copy()
     y = targets['target'].iloc[index]
-    graphs.append(subg)
+    graphs.append(g)
     labels.append(y)
     if index%1000==0:
         print(index)
 
 
-# In[ ]:
-
-
+#compute max degree
 max_degree=max_n = 0
 for g in graphs:
     n = g.number_of_nodes()
@@ -83,9 +74,8 @@ def get_netlsd(graph, n,k):
     return des
 
 
-# In[ ]:
 
-
+## create dataset with train and test splits
 class MyOwnDataset(InMemoryDataset):
     def __init__(self, dataset, labels,k, split='train'):
         self.dataset = dataset
@@ -179,7 +169,6 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size)
 
 
-# In[ ]:
 
 
 class DGCNN(torch.nn.Module):
@@ -225,10 +214,7 @@ class DGCNN(torch.nn.Module):
         x = self.conv2(x).relu()
         x = x.view(x.size(0), -1)  # [num_graphs, dense_dim]
         return self.mlp(x)
- 
 
-
-# In[ ]:
 
 
 def train():
